@@ -4,6 +4,10 @@ import logging
 from datetime import datetime
 from typing import cast
 
+from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+)
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -90,6 +94,19 @@ class BatteryNotesDevice:
         device_registry = dr.async_get(self.hass)
         entity_registry = er.async_get(self.hass)
 
+        def _is_battery(entity: RegistryEntry):
+            return (
+                entity.domain == SENSOR_DOMAIN
+                and (entity.device_class or entity.original_device_class)
+                == SensorDeviceClass.BATTERY
+                and entity.unit_of_measurement == PERCENTAGE
+            ) or (
+                entity.domain == BINARY_SENSOR_DOMAIN
+                and (entity.device_class or entity.original_device_class)
+                == BinarySensorDeviceClass.BATTERY
+                and entity.unit_of_measurement is None
+            )
+
         if source_entity_id:
             entity = entity_registry.async_get(source_entity_id)
 
@@ -107,8 +124,8 @@ class BatteryNotesDevice:
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="missing_device",
                     translation_placeholders={
-                            "name": config.title,
-                        },
+                        "name": config.title,
+                    },
                 )
 
                 _LOGGER.warning(
@@ -118,18 +135,13 @@ class BatteryNotesDevice:
                 )
                 return False
 
-            device_class = entity.device_class or entity.original_device_class
-            if (
-                device_class == SensorDeviceClass.BATTERY
-                and entity.unit_of_measurement == PERCENTAGE
-            ):
+            if _is_battery(entity):
                 self.wrapped_battery = entity
             else:
                 _LOGGER.debug(
-                    "%s is not a battery entity device_class: %s unit_of_measurement: %s",
+                    "%s is not a battery entity: %s",
                     source_entity_id,
-                    device_class,
-                    entity.unit_of_measurement,
+                    str(entity),
                 )
 
             if entity.device_id:
@@ -148,7 +160,10 @@ class BatteryNotesDevice:
             for entity in entity_registry.entities.values():
                 if not entity.device_id or entity.device_id != device_id:
                     continue
-                if not entity.domain or entity.domain != SENSOR_DOMAIN:
+                if not entity.domain or not (
+                    entity.domain == SENSOR_DOMAIN
+                    or entity.domain == BINARY_SENSOR_DOMAIN
+                ):
                     continue
                 if not entity.platform or entity.platform == DOMAIN:
                     continue
@@ -156,11 +171,7 @@ class BatteryNotesDevice:
                 if entity.disabled:
                     continue
 
-                device_class = entity.device_class or entity.original_device_class
-                if device_class != SensorDeviceClass.BATTERY:
-                    continue
-
-                if entity.unit_of_measurement != PERCENTAGE:
+                if not _is_battery(entity):
                     continue
 
                 self.wrapped_battery = entity_registry.async_get(entity.entity_id)
@@ -187,8 +198,8 @@ class BatteryNotesDevice:
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="missing_device",
                     translation_placeholders={
-                            "name": config.title,
-                        },
+                        "name": config.title,
+                    },
                 )
 
                 _LOGGER.warning(
@@ -208,8 +219,8 @@ class BatteryNotesDevice:
         self.coordinator.device_name = self.device_name
         self.coordinator.battery_type = cast(str, config.data.get(CONF_BATTERY_TYPE))
         try:
-            self.coordinator.battery_quantity = cast(int,
-                config.data.get(CONF_BATTERY_QUANTITY)
+            self.coordinator.battery_quantity = cast(
+                int, config.data.get(CONF_BATTERY_QUANTITY)
             )
         except ValueError:
             self.coordinator.battery_quantity = 1
@@ -220,15 +231,16 @@ class BatteryNotesDevice:
 
         if self.coordinator.battery_low_threshold == 0:
             domain_config: dict = self.hass.data[DOMAIN][DOMAIN_CONFIG]
-            self.coordinator.battery_low_threshold = domain_config.get(
-                CONF_DEFAULT_BATTERY_LOW_THRESHOLD, DEFAULT_BATTERY_LOW_THRESHOLD
-            )
+            if self.wrapped_battery.domain == SENSOR_DOMAIN:
+                self.coordinator.battery_low_threshold = domain_config.get(
+                    CONF_DEFAULT_BATTERY_LOW_THRESHOLD, DEFAULT_BATTERY_LOW_THRESHOLD
+                )
 
         self.coordinator.battery_low_template = config.data.get(
             CONF_BATTERY_LOW_TEMPLATE
         )
 
-        if self.wrapped_battery:
+        if self.wrapped_battery and self.wrapped_battery.domain == SENSOR_DOMAIN:
             _LOGGER.debug(
                 "%s low threshold set at %d",
                 self.wrapped_battery.entity_id,
@@ -256,7 +268,9 @@ class BatteryNotesDevice:
                 last_replaced,
             )
 
-            self.coordinator.last_replaced = datetime.fromisoformat(last_replaced) if last_replaced else None
+            self.coordinator.last_replaced = (
+                datetime.fromisoformat(last_replaced) if last_replaced else None
+            )
 
         # If there is not a last_reported set to now
         if not self.coordinator.last_reported:

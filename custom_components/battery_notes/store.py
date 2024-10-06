@@ -32,7 +32,7 @@ class DeviceEntry:
     device_id = attr.ib(type=str, default=None)
     battery_last_replaced = attr.ib(type=datetime, default=None)
     battery_last_reported = attr.ib(type=datetime, default=None)
-    battery_last_reported_level = attr.ib(type=float, default=None)
+    battery_last_reported_level = attr.ib(type=float | bool, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -42,7 +42,7 @@ class EntityEntry:
     entity_id = attr.ib(type=str, default=None)
     battery_last_replaced = attr.ib(type=datetime, default=None)
     battery_last_reported = attr.ib(type=datetime, default=None)
-    battery_last_reported_level = attr.ib(type=float, default=None)
+    battery_last_reported_level = attr.ib(type=float | bool, default=None)
 
 
 class MigratableStore(Store):
@@ -121,7 +121,7 @@ class BatteryNotesStorage:
         self.devices = {}
 
     @callback
-    def async_get_device(self, device_id)-> dict[str, Any] | None:
+    def async_get_device(self, device_id) -> dict[str, Any] | None:
         """Get an existing DeviceEntry by id."""
         res = self.devices.get(device_id)
         return attr.asdict(res) if res else None

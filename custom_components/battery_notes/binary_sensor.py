@@ -61,7 +61,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from . import PLATFORMS
-from .common import validate_is_float
+from .common import validate_state_is_compatible
 from .const import (
     ATTR_BATTERY_LOW_THRESHOLD,
     CONF_SOURCE_ENTITY_ID,
@@ -123,7 +123,9 @@ async def async_setup_entry(
 
     device_id = config_entry.data.get(CONF_DEVICE_ID)
 
-    async def async_registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+    async def async_registry_updated(
+        event: Event[er.EventEntityRegistryUpdatedData],
+    ) -> None:
         """Handle entity registry update."""
         data = event.data
         if data["action"] == "remove":
@@ -587,8 +589,7 @@ class BatteryNotesBatteryLowSensor(
 
         if (
             not self.coordinator.wrapped_battery
-            or
-            (
+            or (
                 wrapped_battery_state := self.hass.states.get(
                     self.coordinator.wrapped_battery.entity_id
                 )
@@ -599,13 +600,14 @@ class BatteryNotesBatteryLowSensor(
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ]
-            or not validate_is_float(wrapped_battery_state.state)
+            or not validate_state_is_compatible(wrapped_battery_state.state)
         ):
             self._attr_is_on = None
             self._attr_available = False
             self.async_write_ha_state()
             return
 
+        self.coordinator.current_battery_level = wrapped_battery_state.state
         self._attr_is_on = self.coordinator.battery_low
 
         self.async_write_ha_state()

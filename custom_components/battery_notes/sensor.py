@@ -10,6 +10,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.sensor import (
+    DOMAIN as SENSOR_DOMAIN,
     PLATFORM_SCHEMA,
     RestoreSensor,
     SensorDeviceClass,
@@ -51,7 +52,7 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 
-from .common import validate_is_float
+from .common import validate_state_is_compatible
 from .const import (
     ATTR_BATTERY_LAST_REPLACED,
     ATTR_BATTERY_LAST_REPORTED,
@@ -133,7 +134,9 @@ async def async_setup_entry(
 
     device_id = config_entry.data.get(CONF_DEVICE_ID, None)
 
-    async def async_registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+    async def async_registry_updated(
+        event: Event[er.EventEntityRegistryUpdatedData],
+    ) -> None:
         """Handle entity registry update."""
         data = event.data
         if data["action"] == "remove":
@@ -228,7 +231,10 @@ async def async_setup_entry(
         ),
     ]
 
-    if device.wrapped_battery is not None:
+    if (
+        device.wrapped_battery is not None
+        and device.wrapped_battery.domain == SENSOR_DOMAIN
+    ):
         entities.append(
             BatteryNotesBatteryPlusSensor(
                 hass,
@@ -368,7 +374,7 @@ class BatteryNotesBatteryPlusSensor(
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ]
-            or not validate_is_float(wrapped_battery_state.state)
+            or not validate_state_is_compatible(wrapped_battery_state.state)
         ):
             self._attr_native_value = None
             self._attr_available = False
