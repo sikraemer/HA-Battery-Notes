@@ -20,7 +20,7 @@ See how to use this entity in the [community contributions](./community.md)
 | `battery_low` | `bool` | An indicator of whether the battery is low based on the device or global threshold |
 | `battery_low_threshold` | `int` | The device or global threshold for when the battery is low |
 | `battery_last_reported` | `datetime` | The datetime when the battery level was last reported |
-| `battery_last_reported_level` | `float` | The level when the battery was last reported |
+| `battery_last_reported_level` | `float|bool` | The level when the battery was last reported |
 | `device_id` | `string` | The device_id of the device |
 | `device_name` | `string` | The name of the device |
 | `source_entity_id` | `string` | The entity_id the battery note is associated with |

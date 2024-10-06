@@ -1,7 +1,11 @@
 """Battery Notes device, contains device level details."""
 
 import logging
+from typing import Optional
 
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+)
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -91,13 +95,19 @@ class BatteryNotesDevice:
         device_registry = dr.async_get(self.hass)
         entity_registry = er.async_get(self.hass)
 
+        def _is_battery(entity:RegistryEntry, device_class:Optional[str] = None):
+            device_class = device_class or entity.device_class or entity.original_device_class
+            return (
+                device_class == SensorDeviceClass.BATTERY
+                and entity.unit_of_measurement == PERCENTAGE
+            ) or (
+                device_class == BinarySensorDeviceClass.BATTERY
+            )
+
         if source_entity_id:
             entity = entity_registry.async_get(source_entity_id)
             device_class = entity.device_class or entity.original_device_class
-            if (
-                device_class == SensorDeviceClass.BATTERY
-                and entity.unit_of_measurement == PERCENTAGE
-            ):
+            if _is_battery(entity, device_class):
                 self.wrapped_battery = entity
             else:
                 _LOGGER.debug(
@@ -131,11 +141,7 @@ class BatteryNotesDevice:
                 if entity.disabled:
                     continue
 
-                device_class = entity.device_class or entity.original_device_class
-                if device_class != SensorDeviceClass.BATTERY:
-                    continue
-
-                if entity.unit_of_measurement != PERCENTAGE:
+                if not _is_battery(entity):
                     continue
 
                 self.wrapped_battery = entity_registry.async_get(entity.entity_id)

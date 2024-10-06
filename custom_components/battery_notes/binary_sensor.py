@@ -61,7 +61,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from . import PLATFORMS
-from .common import validate_is_float
+from .common import validate_state_is_compatible
 from .const import (
     ATTR_BATTERY_LOW_THRESHOLD,
     CONF_SOURCE_ENTITY_ID,
@@ -598,7 +598,7 @@ class BatteryNotesBatteryLowSensor(
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ]
-            or not validate_is_float(wrapped_battery_state.state)
+            or not validate_state_is_compatible(wrapped_battery_state.state)
         ):
             self._attr_is_on = None
             self._attr_available = False

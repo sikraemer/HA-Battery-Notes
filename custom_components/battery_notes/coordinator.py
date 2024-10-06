@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .common import validate_is_float
+from .common import validate_is_float, validate_is_bool
 from .const import (
     ATTR_BATTERY_LEVEL,
     ATTR_BATTERY_LOW,
@@ -189,12 +189,19 @@ class BatteryNotesCoordinator(DataUpdateCoordinator):
                 )
 
             if self._current_battery_level not in [STATE_UNAVAILABLE, STATE_UNKNOWN]:
-                if (
-                    self._current_battery_level
-                    and self._previous_battery_level
-                    and float(self._current_battery_level)
-                    >= (float(self._previous_battery_level) + increase_threshold)
-                ):
+                battery_level_increased = False
+                if (self._current_battery_level 
+                    and self._previous_battery_level):
+                    if (validate_is_float(self._current_battery_level) 
+                        and validate_is_float(self._previous_battery_level)):
+                        if (float(self._current_battery_level) 
+                            >= (float(self._previous_battery_level) + increase_threshold)):
+                            battery_level_increased = True
+                    elif (validate_is_bool(self._current_battery_level) 
+                        and validate_is_bool(self._previous_battery_level)):
+                        if (not bool(self._current_battery_level) and bool(self._previous_battery_level)):
+                            battery_level_increased = True
+                if battery_level_increased:
                     self.hass.bus.async_fire(
                         EVENT_BATTERY_INCREASED,
                         {
@@ -270,7 +277,7 @@ class BatteryNotesCoordinator(DataUpdateCoordinator):
             self.async_update_device_config(device_id=self.device_id, data=entry)
 
     @property
-    def last_reported_level(self) -> float | None:
+    def last_reported_level(self) -> float | bool | None:
         """Get the last reported level."""
 
         if self.source_entity_id:
@@ -305,23 +312,27 @@ class BatteryNotesCoordinator(DataUpdateCoordinator):
                 return bool(
                     float(self.current_battery_level) < self.battery_low_threshold
                 )
+            elif validate_is_bool(self.current_battery_level):
+                return bool(self.current_battery_level)
 
         return False
 
     @property
-    def rounded_battery_level(self) -> float:
+    def rounded_battery_level(self) -> float|bool:
         """Return the battery level, rounded if preferred."""
         return self._rounded_level(self.current_battery_level)
 
     @property
-    def rounded_previous_battery_level(self) -> float:
+    def rounded_previous_battery_level(self) -> float|bool:
         """Return the previous battery level, rounded if preferred."""
         return self._rounded_level(self._previous_battery_level)
 
-    def _rounded_level(self, value) -> float:
+    def _rounded_level(self, value) -> float|bool:
         """Round the level, if preferred."""
         if validate_is_float(value):
             return round(float(value), None if self._round_battery else 1)
+        elif validate_is_bool(value):
+            return bool(value)
         else:
             return value
 
