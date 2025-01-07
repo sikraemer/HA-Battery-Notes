@@ -303,9 +303,14 @@ class BatteryNotesCoordinator(DataUpdateCoordinator):
 
         if entry:
             if LAST_REPORTED_LEVEL in entry:
-                if entry[LAST_REPORTED_LEVEL]:
+                if validate_is_float(entry[LAST_REPORTED_LEVEL]):
                     last_reported_level = float(entry[LAST_REPORTED_LEVEL])
+                elif validate_is_binary(entry[LAST_REPORTED_LEVEL]):
+                    last_reported_level = entry[LAST_REPORTED_LEVEL]
                     return self._rounded_level(last_reported_level)
+                else:
+                    last_reported_level = None
+                return self._rounded_level(last_reported_level)
         return None
 
     @last_reported_level.setter

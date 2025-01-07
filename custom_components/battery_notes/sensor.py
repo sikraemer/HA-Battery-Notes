@@ -10,7 +10,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.sensor import (
-    DOMAIN as SENSOR_DOMAIN,
     PLATFORM_SCHEMA,
     RestoreSensor,
     SensorDeviceClass,
@@ -22,7 +21,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_DEVICE_ID,
     CONF_NAME,
-    PERCENTAGE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
@@ -194,7 +192,7 @@ async def async_setup_entry(
         unique_id_suffix="_battery_plus",
         key="battery_plus",
         translation_key="battery_plus",
-        device_class=SensorDeviceClass.BATTERY,
+        device_class=coordinator.wrapped_battery.device_class,
         suggested_display_precision=0 if round_battery else 1,
     )
 
@@ -231,10 +229,7 @@ async def async_setup_entry(
         ),
     ]
 
-    if (
-        device.wrapped_battery is not None
-        and device.wrapped_battery.domain == SENSOR_DOMAIN
-    ):
+    if device.wrapped_battery is not None:
         entities.append(
             BatteryNotesBatteryPlusSensor(
                 hass,
@@ -348,9 +343,9 @@ class BatteryNotesBatteryPlusSensor(
         self._attr_entity_category = entity_category
         self._attr_unique_id = unique_id
 
-        self._attr_device_class = SensorDeviceClass.BATTERY
+        self._attr_device_class = device.wrapped_battery.device_class
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = PERCENTAGE
+        self._attr_native_unit_of_measurement = device.wrapped_battery.unit_of_measurement
 
     @callback
     async def async_state_changed_listener(
