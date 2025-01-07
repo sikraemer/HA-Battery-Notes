@@ -303,7 +303,7 @@ class BatteryNotesBatteryPlusSensor(
                 "device_name": coordinator.device_name + " "
             }
             self.entity_id = (
-                f"sensor.{coordinator.device_name.lower()}_{description.key}"
+                f"{device.wrapped_battery.domain}.{coordinator.device_name.lower()}_{description.key}"
             )
         elif coordinator.source_entity_id and coordinator.device_id:
             source_entity_domain, source_object_id = split_entity_id(
@@ -312,11 +312,11 @@ class BatteryNotesBatteryPlusSensor(
             self._attr_translation_placeholders = {
                 "device_name": coordinator.source_entity_name + " "
             }
-            self.entity_id = f"sensor.{source_object_id}_{description.key}"
+            self.entity_id = f"{device.wrapped_battery.domain}.{source_object_id}_{description.key}"
         else:
             self._attr_translation_placeholders = {"device_name": ""}
             self.entity_id = (
-                f"sensor.{coordinator.device_name.lower()}_{description.key}"
+                f"{device.wrapped_battery.domain}.{coordinator.device_name.lower()}_{description.key}"
             )
 
         self.entity_description = description
